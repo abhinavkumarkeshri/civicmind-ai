@@ -76,6 +76,6 @@ export const BADGE_THRESHOLDS = {
 
 // AI model configuration — override via env vars
 export const AI_MODELS = {
-  fast: process.env.GEMINI_FAST_MODEL ?? 'gemini-2.0-flash',
-  pro: process.env.GEMINI_PRO_MODEL ?? 'gemini-1.5-pro',
+  fast: process.env.GEMINI_FAST_MODEL ?? 'gemini-2.5-flash',
+  pro: process.env.GEMINI_PRO_MODEL ?? 'gemini-2.5-flash',
 } as const

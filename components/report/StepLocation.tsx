@@ -76,6 +76,30 @@ export function StepLocation({ lat, lng, address, city, state, wardId, onLocatio
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // If we already have coordinates (e.g. captured during photo upload) but
+  // the address/city never resolved, retry the reverse-geocode here.
+  useEffect(() => {
+    if (
+      lat !== 0 &&
+      lng !== 0 &&
+      (city === 'Unknown' || !address)
+    ) {
+      fetch(`/api/geolocation?lat=${lat}&lng=${lng}`)
+        .then((res) => res.json())
+        .then((data) => {
+          onLocationChange(
+            lat,
+            lng,
+            data.address || '',
+            data.city || 'Unknown',
+            data.state || 'Unknown'
+          )
+        })
+        .catch(console.error)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lat, lng])
+
   const hasLocation = lat !== 0 || lng !== 0
 
   return (

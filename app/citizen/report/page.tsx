@@ -59,9 +59,29 @@ export default function ReportPage() {
     // Auto-request location in parallel
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => { setLat(pos.coords.latitude); setLng(pos.coords.longitude) },
+        async (pos) => {
+          const latitude = pos.coords.latitude
+          const longitude = pos.coords.longitude
+          setLat(latitude)
+          setLng(longitude)
+          try {
+            const res = await fetch(
+              `/api/geolocation?lat=${latitude}&lng=${longitude}`
+            )
+            const data = await res.json()
+            setAddress(data.address || '')
+            setCity(data.city || 'Unknown')
+            setState(data.state || 'Unknown')
+          } catch (err) {
+            console.error('Geolocation error:', err)
+          }
+        },
         () => {},
-        { timeout: 8000 },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0,
+        },
       )
     }
   }, [])
@@ -74,6 +94,7 @@ export default function ReportPage() {
     setEditedCategory(result.category)
     if (result.address) {
       // Use geo agent address if available
+      setAddress(result.address)
     }
     setStep('ai_review')
   }, [])
@@ -268,7 +289,7 @@ export default function ReportPage() {
             description={editedDescription}
             result={{ ...aiResult, category: editedCategory as OrchestratorResult['category'], title: editedTitle, description: editedDescription }}
             imagePreview={imagePreview}
-            address={aiResult.address}
+            address={address}
             submitting={submitting}
             onSubmit={handleSubmit}
           />

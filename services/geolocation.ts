@@ -53,70 +53,30 @@ export async function getCurrentLocation(): Promise<LocationData | GeolocationEr
 }
 
 /**
- * Reverse geocode coordinates to city/state/country using Google Maps API
- * Falls back gracefully if API is unavailable
+ * Reverse geocode coordinates to city/state/country using OpenStreetMap (Nominatim).
+ * No API key required.
  */
 export async function reverseGeocode(lat: number, lng: number): Promise<LocationData | GeolocationError> {
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-
-  if (!apiKey) {
-    // Fallback: return basic coordinates without city/state
-    return {
-      lat,
-      lng,
-      address: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
-      city: 'Unknown',
-      state: 'Unknown',
-      country: 'India',
-    }
-  }
-
   try {
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`
-    const response = await fetch(url)
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`,
+      {
+        headers: { 'User-Agent': 'CivicMind-AI/1.0' },
+        cache: 'no-store',
+      },
+    )
     const data = await response.json()
+    const addr = data.address || {}
 
-    if (!data.results || data.results.length === 0) {
-      return {
-        lat,
-        lng,
-        address: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
-        city: 'Unknown',
-        state: 'Unknown',
-        country: 'India',
-      }
-    }
+    const city: string =
+      addr.city || addr.town || addr.village || addr.municipality || addr.county || 'Unknown'
+    const state: string = addr.state || 'Unknown'
+    const country: string = addr.country || 'India'
+    const address: string = data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`
 
-    const result = data.results[0]
-    const address = result.formatted_address || `${lat.toFixed(5)}, ${lng.toFixed(5)}`
-
-    // Extract city, state, country from address_components
-    let city = 'Unknown'
-    let state = 'Unknown'
-    let country = 'India'
-
-    for (const component of result.address_components || []) {
-      const types: string[] = component.types || []
-
-      if (types.includes('locality')) {
-        city = component.long_name
-      } else if (types.includes('administrative_area_level_1')) {
-        state = component.long_name
-      } else if (types.includes('country')) {
-        country = component.long_name
-      }
-    }
-
-    return {
-      lat,
-      lng,
-      address,
-      city,
-      state,
-      country,
-    }
+    return { lat, lng, address, city, state, country }
   } catch (err) {
-    console.error('[v0] Geolocation error:', err)
+    console.error('[OSM] Geolocation error:', err)
     // Fallback on any error
     return {
       lat,

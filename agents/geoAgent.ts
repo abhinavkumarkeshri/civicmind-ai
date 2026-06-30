@@ -5,52 +5,30 @@ export interface GeoResult {
 }
 
 /**
- * Reverse-geocodes lat/lng using the Google Maps Geocoding API.
- * If GOOGLE_MAPS_API_KEY is not set, returns a formatted fallback.
+ * Reverse-geocodes lat/lng using OpenStreetMap's free Nominatim API.
+ * No API key required. "Nearby context" (school/hospital/transit proximity)
+ * is derived from OSM's address tags rather than a Places API, since
+ * Nominatim doesn't offer a separate nearby-search endpoint.
  */
 export async function runGeoAgent(lat: number, lng: number): Promise<GeoResult> {
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY
-
-  if (!apiKey) {
-    return {
-      address: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
-      city: 'Unknown',
-      nearbyContext: [],
-    }
-  }
-
   try {
-    const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`
-    const res = await fetch(geocodeUrl)
-    const data = await res.json()
-
-    const formattedAddress: string =
-      data.results?.[0]?.formatted_address ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`
-
-    // Extract city from address components
-    let city = 'Unknown'
-    const cityComponent = data.results?.[0]?.address_components?.find((c: { types: string[] }) =>
-      c.types.includes('locality'),
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`,
+      {
+        headers: { 'User-Agent': 'CivicMind-AI/1.0' },
+        cache: 'no-store',
+      },
     )
-    if (cityComponent) city = cityComponent.long_name
+    const data = await res.json()
+    const addr = data.address || {}
 
-    // Nearby Places — classify nearby POIs for severity context
+    const formattedAddress: string = data.display_name ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+    const city: string =
+      addr.city || addr.town || addr.village || addr.municipality || addr.county || 'Unknown'
+
     const nearbyContext: string[] = []
-    const placesUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=300&type=school|hospital|transit_station&key=${apiKey}`
-    const placesRes = await fetch(placesUrl)
-    const placesData = await placesRes.json()
-
-    const placeResults = placesData.results?.slice(0, 3) ?? []
-    for (const place of placeResults) {
-      const types: string[] = place.types ?? []
-      if (types.includes('school')) nearbyContext.push(`Near ${place.name} (School)`)
-      else if (types.includes('hospital')) nearbyContext.push(`Near ${place.name} (Hospital)`)
-      else if (types.includes('transit_station')) nearbyContext.push(`Near ${place.name} (Transit)`)
-      else nearbyContext.push(`Near ${place.name}`)
-    }
-
-    // Always note if it looks like a main road
-    if (formattedAddress.toLowerCase().includes('road') || formattedAddress.toLowerCase().includes('highway')) {
+    if (addr.amenity) nearbyContext.push(`Near ${addr.amenity}`)
+    if (addr.road && /road|highway|marg|nh-?\d/i.test(addr.road)) {
       nearbyContext.push('On a main arterial road')
     }
 

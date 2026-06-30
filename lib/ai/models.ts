@@ -8,10 +8,10 @@ if (!process.env.GEMINI_API_KEY) {
 export const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? '')
 
 // Fast model — Vision, Severity, Duplicate agents (low latency)
-export const FAST_MODEL = process.env.GEMINI_FAST_MODEL ?? 'gemini-2.0-flash'
+export const FAST_MODEL = process.env.GEMINI_FAST_MODEL ?? 'gemini-2.5-flash'
 
 // Pro model — Repair Planning, AI Summary (deeper reasoning)
-export const PRO_MODEL = process.env.GEMINI_PRO_MODEL ?? 'gemini-1.5-pro'
+export const PRO_MODEL = process.env.GEMINI_PRO_MODEL ?? 'gemini-2.5-flash'
 
 export function getFastModel() {
   return genAI.getGenerativeModel({

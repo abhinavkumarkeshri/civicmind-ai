@@ -37,6 +37,8 @@ export default function LoginPage() {
 
     if (profile?.role === 'officer') {
       router.push('/officer/dashboard')
+    } else if (profile?.role === 'admin') {
+      router.push('/admin/dashboard')
     } else {
       router.push('/citizen/dashboard')
     }
@@ -170,27 +172,6 @@ export default function LoginPage() {
               Create account
             </Link>
           </p>
-
-          {/* Demo credentials hint */}
-          <div className="mt-8 p-4 rounded-lg border border-[#1f2d45] bg-[#111827]">
-            <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-3">
-              Demo accounts
-            </p>
-            <div className="space-y-2 text-xs text-slate-400">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Citizen</span>
-                <span>citizen@civicmind.in</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Officer</span>
-                <span>officer@civicmind.in</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Password</span>
-                <span>CivicDemo2024!</span>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

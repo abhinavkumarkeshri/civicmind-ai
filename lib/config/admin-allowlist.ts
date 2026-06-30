@@ -14,7 +14,7 @@ export const ADMIN_ALLOWLIST = [
  * Validate if an email is authorized to create an admin account
  */
 export function isAuthorizedAdminEmail(email: string): boolean {
-  return ADMIN_ALLOWLIST.includes(email.toLowerCase())
+  return getAuthorizedAdminEmails().includes(email.toLowerCase())
 }
 
 /**
