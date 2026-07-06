@@ -56,8 +56,8 @@ export default function AdminOfficersPage() {
         const formattedData = data.map((o: any) => ({
           id: o.id,
           user_id: o.user_id,
-          full_name: o.profiles?.[0]?.full_name || 'Unknown',
-          email: o.profiles?.[0]?.email || 'N/A',
+          full_name: o.profiles?.full_name || 'Unknown',
+          email: o.profiles?.email || 'N/A',
           ward_name: o.wards?.name || 'Unassigned',
           status: o.status,
           created_at: o.created_at,

@@ -49,8 +49,8 @@ export default function AdminDashboardPage() {
         setPendingOfficers(
           officers.map((o: any) => ({
             id: o.id,
-            full_name: o.profiles?.[0]?.full_name || 'Unknown',
-            email: o.profiles?.[0]?.email || 'N/A',
+            full_name: o.profiles?.full_name || 'Unknown',
+            email: o.profiles?.email || 'N/A',
             created_at: o.created_at,
           })),
         )
