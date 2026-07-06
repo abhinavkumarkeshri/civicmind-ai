@@ -38,6 +38,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create account' }, { status: 500 })
     }
 
+    // Supabase does NOT throw an error when signUp() is called with an email
+    // that's already registered — instead, to prevent user enumeration, it
+    // returns a "success" response with an obfuscated user object whose
+    // `identities` array is empty. That id does not correspond to a real
+    // row in auth.users, so trying to insert a profile with it fails with
+    // a foreign key violation. Catch this case explicitly and tell the
+    // person to log in / reset their password instead.
+    if (authData.user.identities && authData.user.identities.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            'An account with this email already exists. Please sign in instead, or use "Forgot password" if you don\'t remember your credentials.',
+        },
+        { status: 409 },
+      )
+    }
+
     // Create profile — uses the service-role client because at this point
     // there is no authenticated session yet (e.g. when email confirmation
     // is enabled, signUp() does not return a session), so the anon-key

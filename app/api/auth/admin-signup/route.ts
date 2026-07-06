@@ -57,7 +57,16 @@ export async function POST(request: NextRequest) {
     // Ask them to log in via /admin/login — admin verification still works
     // because verifyAdminAccess checks the admins table by userId obtained
     // AFTER a successful signInWithPassword.
-    if (authError?.message?.includes('already registered')) {
+    // Supabase has two different ways of signalling "this email is already
+    // registered": sometimes it throws an error with this message, but
+    // OFTEN (to prevent user enumeration) it instead returns a "success"
+    // response with an obfuscated user object whose `identities` array is
+    // empty — no error at all. Treat both as the same case.
+    const looksLikeExistingUser =
+      authError?.message?.includes('already registered') ||
+      (authData?.user && authData.user.identities && authData.user.identities.length === 0)
+
+    if (looksLikeExistingUser) {
       // We need their user_id — sign them in temporarily to get it, then sign out.
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
