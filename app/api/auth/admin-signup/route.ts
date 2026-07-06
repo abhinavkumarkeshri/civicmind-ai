@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
       await adminSupabase.from('profiles').upsert({
         id: userId,
         full_name: fullName || 'Admin',
+        email: email.toLowerCase(),
         role: 'admin',
         updated_at: new Date().toISOString(),
       })
@@ -132,6 +133,7 @@ export async function POST(request: NextRequest) {
     const { error: profileError } = await adminSupabase.from('profiles').upsert({
       id: userId,
       full_name: fullName || 'Admin',
+      email: email.toLowerCase(),
       role: 'admin',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

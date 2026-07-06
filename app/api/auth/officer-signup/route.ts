@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
       .upsert({
         id: authData.user.id,
         full_name: fullName,
+        email: email.toLowerCase(),
         role: 'officer',
         ward_id: wardId || null,
         created_at: new Date().toISOString(),
