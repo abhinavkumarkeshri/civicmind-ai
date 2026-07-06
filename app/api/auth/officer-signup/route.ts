@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -37,8 +38,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create account' }, { status: 500 })
     }
 
-    // Create profile
-    const { error: profileError } = await supabase
+    // Create profile — uses the service-role client because at this point
+    // there is no authenticated session yet (e.g. when email confirmation
+    // is enabled, signUp() does not return a session), so the anon-key
+    // client would fail the profiles_insert_own RLS check.
+    const adminSupabase = createAdminClient()
+
+    const { error: profileError } = await adminSupabase
       .from('profiles')
       .upsert({
         id: authData.user.id,
@@ -55,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create officer record with PENDING status
-    const { error: officerError } = await supabase
+    const { error: officerError } = await adminSupabase
       .from('officers')
       .upsert({
         user_id: authData.user.id,

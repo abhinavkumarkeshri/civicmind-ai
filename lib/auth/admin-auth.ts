@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { canAccessAdminPortal } from '@/lib/config/admin-allowlist'
 
 /**
@@ -7,7 +7,9 @@ import { canAccessAdminPortal } from '@/lib/config/admin-allowlist'
  */
 export async function verifyAdminAccess(userId: string): Promise<boolean> {
   try {
-    const supabase = await createClient()
+    // auth.admin.* methods require the service-role key — the regular
+    // anon-key client (lib/supabase/server.ts) cannot call getUserById.
+    const supabase = createAdminClient()
 
     // Get user email from Supabase Auth
     const {
@@ -50,7 +52,7 @@ export async function verifyAdminAccess(userId: string): Promise<boolean> {
  */
 export async function getCurrentUserAdminStatus(userId: string): Promise<{ isAdmin: boolean; email?: string }> {
   try {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     const {
       data: { user },

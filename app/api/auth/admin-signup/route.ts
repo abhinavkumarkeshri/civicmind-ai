@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { isAuthorizedAdminEmail } from '@/lib/config/admin-allowlist'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -72,8 +73,14 @@ export async function POST(request: NextRequest) {
       const userId = signInData.user.id
       await supabase.auth.signOut()
 
+      // Use the service-role client for these writes: we've already
+      // verified the password via signInWithPassword above, and the
+      // session was just signed out, so there's no active session left
+      // for RLS to check against.
+      const adminSupabase = createAdminClient()
+
       // Upsert profile with admin role
-      await supabase.from('profiles').upsert({
+      await adminSupabase.from('profiles').upsert({
         id: userId,
         full_name: fullName || 'Admin',
         role: 'admin',
@@ -81,7 +88,7 @@ export async function POST(request: NextRequest) {
       })
 
       // Insert admin record
-      const { error: adminInsertError } = await supabase.from('admins').insert({
+      const { error: adminInsertError } = await adminSupabase.from('admins').insert({
         user_id: userId,
         email: email.toLowerCase(),
         created_at: new Date().toISOString(),
@@ -109,7 +116,11 @@ export async function POST(request: NextRequest) {
 
     const userId = authData.user.id
 
-    const { error: profileError } = await supabase.from('profiles').upsert({
+    // Service-role client — same reasoning as above: no session exists
+    // yet immediately after signUp() when email confirmation is enabled.
+    const adminSupabase = createAdminClient()
+
+    const { error: profileError } = await adminSupabase.from('profiles').upsert({
       id: userId,
       full_name: fullName || 'Admin',
       role: 'admin',
@@ -121,7 +132,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Failed to create admin profile: ${profileError.message}` }, { status: 500 })
     }
 
-    const { error: adminError } = await supabase.from('admins').insert({
+    const { error: adminError } = await adminSupabase.from('admins').insert({
       user_id: userId,
       email: email.toLowerCase(),
       created_at: new Date().toISOString(),
