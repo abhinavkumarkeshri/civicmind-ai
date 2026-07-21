@@ -1,178 +1,255 @@
-import { notFound, redirect } from 'next/navigation'
-import Link from 'next/link'
-import { ArrowLeft, MapPin, Clock, IndianRupee, User, Wrench, AlertCircle } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
-import { getComplaintById, getComplaintUpdates } from '@/services/supabase/complaints'
+'use client'
+
+import { useEffect, useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import { PageHeader } from '@/components/shared/PageHeader'
 import { SeverityBadge } from '@/components/shared/SeverityBadge'
 import { StatusPill } from '@/components/shared/StatusPill'
 import { CategoryBadge } from '@/components/shared/CategoryBadge'
-import { AIExplainCard } from '@/components/complaints/AIExplainCard'
-import { ComplaintTimeline } from '@/components/complaints/ComplaintTimeline'
-import { OfficerStatusUpdater } from '@/components/officer/OfficerStatusUpdater'
-import { formatRelativeTime, formatCurrency } from '@/lib/utils/formatters'
-import { getDepartmentForCategory } from '@/lib/config/department-mapping'
+import { formatRelativeTime } from '@/lib/utils/formatters'
+import Link from 'next/link'
+import { Search, Filter, MapPin } from 'lucide-react'
+import type { Complaint } from '@/lib/types/database'
 
-export const dynamic = 'force-dynamic'
+export default function OfficerComplaintsPage() {
+  const router = useRouter()
+  const [complaints, setComplaints] = useState<Complaint[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [severityFilter, setSeverityFilter] = useState<'all' | 'critical' | 'high' | 'medium' | 'low'>('all')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'submitted' | 'under_review' | 'in_progress'>('all')
 
-export default async function OfficerComplaintDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
-  const { id } = await params
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/auth/login')
+  useEffect(() => {
+    loadComplaints()
+  }, [severityFilter, categoryFilter, statusFilter])
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'officer') redirect('/citizen/dashboard')
+  async function loadComplaints() {
+    try {
+      setLoading(true)
+      const supabase = createClient()
 
-  const [complaint, updates] = await Promise.all([
-    getComplaintById(id),
-    getComplaintUpdates(id),
-  ])
-  if (!complaint) notFound()
+      const { data: userData } = await supabase.auth.getUser()
+      if (!userData.user) {
+        router.push('/auth/login')
+        return
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, ward_id')
+        .eq('id', userData.user.id)
+        .single()
+
+      if (profile?.role !== 'officer') {
+        router.push('/citizen/dashboard')
+        return
+      }
+
+      let query = supabase
+        .from('complaints')
+        .select('*, wards(name)')
+        .not('status', 'in', '("resolved","closed")')
+
+      if (profile?.ward_id) {
+        query = query.eq('ward_id', profile.ward_id)
+      }
+
+      if (severityFilter !== 'all') {
+        query = query.eq('severity', severityFilter)
+      }
+
+      if (categoryFilter !== 'all') {
+        query = query.eq('category', categoryFilter)
+      }
+
+      if (statusFilter !== 'all') {
+        query = query.eq('status', statusFilter)
+      }
+
+      const { data, error } = await query.order('severity_score', { ascending: false }).limit(100)
+
+      if (!error && data) {
+        setComplaints(data as Complaint[])
+      }
+    } catch (error) {
+      console.error('[v0] Load error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filtered = useMemo(() => {
+    return complaints.filter((c) => {
+      if (!search) return true
+      const lowerSearch = search.toLowerCase()
+      return (
+        c.title.toLowerCase().includes(lowerSearch) ||
+        c.description.toLowerCase().includes(lowerSearch) ||
+        c.address?.toLowerCase().includes(lowerSearch)
+      )
+    })
+  }, [complaints, search])
+
+  const grouped = useMemo(() => {
+    return {
+      critical: filtered.filter((c) => c.severity === 'critical'),
+      high: filtered.filter((c) => c.severity === 'high'),
+      medium: filtered.filter((c) => c.severity === 'medium'),
+      low: filtered.filter((c) => c.severity === 'low'),
+    }
+  }, [filtered])
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6">
-      <Link
-        href="/officer/complaints"
-        className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200 mb-5 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Work queue
-      </Link>
+    <div>
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <PageHeader
+          title="Work Queue"
+          subtitle={`${filtered.length} open complaints`}
+        />
 
-      {/* Hero image */}
-      {complaint.before_image_url && (
-        <div className="rounded-xl overflow-hidden border border-[#1f2d45] mb-5 aspect-video bg-black">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={complaint.before_image_url}
-            alt={complaint.title}
-            className="w-full h-full object-cover"
-          />
-        </div>
-      )}
+        {/* Filters */}
+        <div className="mb-6 space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-3.5 w-4 h-4 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Search by title, description, or location..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 rounded-lg border border-[#1f2d45] bg-[#111827] text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20"
+            />
+          </div>
 
-      {/* Title + badges */}
-      <div className="mb-5">
-        <div className="flex flex-wrap gap-2 mb-3">
-          <CategoryBadge category={complaint.category} />
-          <SeverityBadge severity={complaint.severity} />
-          <StatusPill status={complaint.status} />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <select
+              value={severityFilter}
+              onChange={(e) => setSeverityFilter(e.target.value as any)}
+              className="px-3 py-2 rounded-lg border border-[#1f2d45] bg-[#111827] text-slate-300 text-sm focus:outline-none focus:border-amber-500/50"
+            >
+              <option value="all">All Severities</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-[#1f2d45] bg-[#111827] text-slate-300 text-sm focus:outline-none focus:border-amber-500/50"
+            >
+              <option value="all">All Categories</option>
+              <option value="pothole">Pothole</option>
+              <option value="road_damage">Road Damage</option>
+              <option value="streetlight">Street Light</option>
+              <option value="garbage">Garbage</option>
+              <option value="drain">Drain</option>
+              <option value="water_leak">Water Leak</option>
+              <option value="fallen_tree">Fallen Tree</option>
+              <option value="other">Other</option>
+            </select>
+
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="px-3 py-2 rounded-lg border border-[#1f2d45] bg-[#111827] text-slate-300 text-sm focus:outline-none focus:border-amber-500/50"
+            >
+              <option value="all">All Status</option>
+              <option value="submitted">Submitted</option>
+              <option value="under_review">Under Review</option>
+              <option value="in_progress">In Progress</option>
+            </select>
+
+            <div className="px-3 py-2 rounded-lg border border-[#1f2d45] bg-[#0d1526] text-slate-400 text-sm font-medium flex items-center gap-2">
+              <Filter className="w-4 h-4" />
+              {filtered.length} results
+            </div>
+          </div>
         </div>
-        <h1 className="text-xl font-bold text-slate-100 text-balance">{complaint.title}</h1>
-        <p className="text-slate-400 mt-2 text-sm leading-relaxed">{complaint.description}</p>
+
+        {/* Results by Severity */}
+        {loading ? (
+          <div className="text-center py-12 text-slate-400">Loading complaints...</div>
+        ) : filtered.length === 0 ? (
+          <div className="rounded-xl border border-[#1f2d45] border-dashed bg-[#0d1526] p-12 text-center">
+            <p className="text-slate-400">No complaints match your filters</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {Object.entries(grouped).map(([severity, items]) => {
+              if (items.length === 0) return null
+              const severityColors = {
+                critical: 'text-red-400 bg-red-500/10',
+                high: 'text-orange-400 bg-orange-500/10',
+                medium: 'text-amber-400 bg-amber-500/10',
+                low: 'text-blue-400 bg-blue-500/10',
+              }
+              return (
+                <div key={severity}>
+                  <div className={`flex items-center gap-2 mb-4 px-4 py-2 rounded-lg w-fit ${severityColors[severity as keyof typeof severityColors]} border border-current/20`}>
+                    <span className="font-semibold uppercase text-sm">{severity}</span>
+                    <span className="px-2 py-0.5 rounded bg-current/20 text-xs font-medium">{items.length}</span>
+                  </div>
+
+                  <div className="rounded-xl border border-[#1f2d45] bg-[#111827] overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-[#1f2d45] bg-[#0d1526]/50">
+                            {['Issue', 'Category', 'Severity', 'Status', 'Upvotes', 'Reported', ''].map((h) => (
+                              <th key={h} className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                                {h}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#1a2235]">
+                          {items.map((c) => (
+                            <tr key={c.id} className="hover:bg-[#131e30] transition-colors group">
+                              <td className="px-4 py-3">
+                                <div className="font-medium text-slate-200 line-clamp-1 max-w-[180px] group-hover:text-amber-300 transition-colors">
+                                  {c.title}
+                                </div>
+                                {c.address && (
+                                  <div className="text-xs text-slate-500 truncate max-w-[180px] mt-0.5 flex items-center gap-1">
+                                    <MapPin className="w-3 h-3" />
+                                    {c.address}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                <CategoryBadge category={c.category} />
+                              </td>
+                              <td className="px-4 py-3">
+                                <SeverityBadge severity={c.severity} size="sm" />
+                              </td>
+                              <td className="px-4 py-3">
+                                <StatusPill status={c.status} size="sm" />
+                              </td>
+                              <td className="px-4 py-3 text-slate-400">{c.upvote_count}</td>
+                              <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{formatRelativeTime(c.created_at)}</td>
+                              <td className="px-4 py-3">
+                                <Link
+                                  href={`/officer/complaints/${c.id}`}
+                                  className="text-xs text-amber-400 hover:text-amber-300 font-medium transition-colors"
+                                >
+                                  Review
+                                </Link>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
-
-      {/* Officer Status Updater */}
-      <OfficerStatusUpdater
-        complaintId={complaint.id}
-        currentStatus={complaint.status}
-        assignedOfficerId={complaint.assigned_officer_id}
-        officerId={user.id}
-      />
-
-      {/* Department Alert */}
-      {(() => {
-        const dept = getDepartmentForCategory(complaint.category)
-        return dept ? (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 mb-5 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-amber-300">Department: {dept.name}</p>
-              {dept.email && <p className="text-xs text-amber-200/70 mt-0.5">{dept.email}</p>}
-            </div>
-          </div>
-        ) : null
-      })()}
-
-      {/* Meta grid */}
-      <div className="grid grid-cols-2 gap-3 my-5">
-        {complaint.address && (
-          <div className="flex items-start gap-2 p-3 rounded-xl border border-[#1f2d45] bg-[#111827]">
-            <MapPin className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-[10px] text-slate-500">Location</p>
-              <p className="text-xs text-slate-300 leading-snug">{complaint.address}</p>
-            </div>
-          </div>
-        )}
-        <div className="flex items-start gap-2 p-3 rounded-xl border border-[#1f2d45] bg-[#111827]">
-          <Clock className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="text-[10px] text-slate-500">Reported</p>
-            <p className="text-xs text-slate-300">{formatRelativeTime(complaint.created_at)}</p>
-          </div>
-        </div>
-        {complaint.estimated_cost && (
-          <div className="flex items-start gap-2 p-3 rounded-xl border border-[#1f2d45] bg-[#111827]">
-            <IndianRupee className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-[10px] text-slate-500">Est. cost</p>
-              <p className="text-xs text-slate-300">{formatCurrency(complaint.estimated_cost)}</p>
-            </div>
-          </div>
-        )}
-        {complaint.estimated_hours && (
-          <div className="flex items-start gap-2 p-3 rounded-xl border border-[#1f2d45] bg-[#111827]">
-            <Wrench className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-[10px] text-slate-500">Est. time</p>
-              <p className="text-xs text-slate-300">{complaint.estimated_hours}h</p>
-            </div>
-          </div>
-        )}
-        {complaint.departments && (
-          <div className="flex items-start gap-2 p-3 rounded-xl border border-[#1f2d45] bg-[#111827]">
-            <User className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-[10px] text-slate-500">Department</p>
-              <p className="text-xs text-slate-300">{(complaint.departments as { name: string }).name}</p>
-            </div>
-          </div>
-        )}
-        <div className="flex items-start gap-2 p-3 rounded-xl border border-[#1f2d45] bg-[#111827]">
-          <User className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="text-[10px] text-slate-500">Reporter</p>
-            <p className="text-xs text-slate-300">
-              {complaint.profiles
-                ? (complaint.profiles as { full_name?: string }).full_name ?? 'Anonymous'
-                : 'Anonymous'}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Repair steps */}
-      {complaint.repair_steps.length > 0 && (
-        <div className="rounded-xl border border-[#1f2d45] bg-[#0d1526] p-4 mb-5">
-          <h3 className="text-sm font-semibold text-slate-200 mb-3">AI Repair Steps</h3>
-          <ol className="space-y-2">
-            {complaint.repair_steps.map((step, i) => (
-              <li key={i} className="flex items-start gap-2.5 text-sm text-slate-400">
-                <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] flex items-center justify-center font-bold flex-shrink-0 mt-0.5">
-                  {i + 1}
-                </span>
-                {step}
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
-
-      {/* AI Explainability */}
-      {complaint.ai_analysis && (
-        <div className="mb-5">
-          <AIExplainCard analysis={complaint.ai_analysis} />
-        </div>
-      )}
-
-      {/* Timeline */}
-      <h3 className="text-sm font-semibold text-slate-200 mb-3">Status Timeline</h3>
-      <ComplaintTimeline updates={updates} />
     </div>
   )
 }
