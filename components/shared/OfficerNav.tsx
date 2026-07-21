@@ -45,6 +45,11 @@ export function OfficerNav({ profile, unreadCount = 0 }: OfficerNavProps) {
             <span className="ml-1.5 text-xs font-medium text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
               Officer
             </span>
+            {profile?.city && (
+              <span className="ml-1.5 text-xs font-medium text-slate-400 bg-[#1a2235] border border-[#1f2d45] px-1.5 py-0.5 rounded">
+                {profile.city}
+              </span>
+            )}
           </div>
         </Link>
 
@@ -106,6 +111,9 @@ export function OfficerNav({ profile, unreadCount = 0 }: OfficerNavProps) {
                     <p className="text-xs text-slate-500 uppercase tracking-wide">Account</p>
                     <p className="text-sm font-medium text-slate-200 mt-1">{profile?.full_name ?? 'Officer'}</p>
                     <p className="text-xs text-amber-400 mt-1">{profile?.role ?? 'officer'}</p>
+                    {profile?.city && (
+                      <p className="text-xs text-slate-500 mt-0.5">Assigned city: {profile.city}</p>
+                    )}
                   </div>
                   <button
                     onClick={handleSignOut}

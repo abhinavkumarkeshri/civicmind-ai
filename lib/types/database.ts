@@ -24,6 +24,7 @@ export interface Profile {
   avatar_url: string | null
   role: UserRole
   ward_id: string | null
+  city: string | null
   points: number
   badges: string[]
   created_at: string
@@ -104,6 +105,7 @@ export interface Officer {
   id: string
   user_id: string
   ward_id: string
+  city: string | null
   department_id: string | null
   status: OfficerStatus
   approved_by: string | null

@@ -11,6 +11,7 @@ interface OfficerData {
   full_name: string
   email: string
   ward_name: string
+  city: string | null
   status: 'pending' | 'active' | 'suspended' | 'rejected'
   created_at: string
   approved_at: string | null
@@ -22,10 +23,28 @@ export default function AdminOfficersPage() {
   const [filter, setFilter] = useState<'all' | 'pending' | 'active' | 'suspended' | 'rejected'>('all')
   const [selectedOfficer, setSelectedOfficer] = useState<OfficerData | null>(null)
   const [showModal, setShowModal] = useState(false)
+  const [availableCities, setAvailableCities] = useState<string[]>([])
+  const [cityDraft, setCityDraft] = useState('')
+  const [savingCity, setSavingCity] = useState(false)
 
   useEffect(() => {
     loadOfficers()
   }, [filter])
+
+  useEffect(() => {
+    loadCities()
+  }, [])
+
+  async function loadCities() {
+    try {
+      const supabase = createClient()
+      const { data } = await supabase.from('wards').select('city')
+      const unique = Array.from(new Set((data ?? []).map((w: any) => w.city).filter(Boolean))).sort()
+      setAvailableCities(unique as string[])
+    } catch (error) {
+      console.error('[v0] Cities loading error:', error)
+    }
+  }
 
   async function loadOfficers() {
     try {
@@ -42,6 +61,7 @@ export default function AdminOfficersPage() {
           created_at,
           approved_at,
           wards:ward_id (name),
+          city,
           profiles:user_id (full_name, email)
         `,
         )
@@ -59,6 +79,7 @@ export default function AdminOfficersPage() {
           full_name: o.profiles?.full_name || 'Unknown',
           email: o.profiles?.email || 'N/A',
           ward_name: o.wards?.name || 'Unassigned',
+          city: o.city || null,
           status: o.status,
           created_at: o.created_at,
           approved_at: o.approved_at,
@@ -146,6 +167,44 @@ export default function AdminOfficersPage() {
     }
   }
 
+  async function handleChangeCity(officer: OfficerData, newCity: string) {
+    if (!newCity || newCity === officer.city) return
+    try {
+      setSavingCity(true)
+      const supabase = createClient()
+
+      // Update the officer record — this is what actually changes their
+      // access: RLS on complaints (complaints_update_own) and the officer
+      // queue/dashboard queries match on officers.city, so as soon as this
+      // is saved, the officer immediately sees and can act on the new
+      // city's complaints instead of the old one.
+      const { error: officerError } = await supabase
+        .from('officers')
+        .update({ city: newCity, updated_at: new Date().toISOString() })
+        .eq('id', officer.id)
+
+      // Keep profiles.city in sync too (used for display in the officer's
+      // own nav bar).
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ city: newCity, updated_at: new Date().toISOString() })
+        .eq('id', officer.user_id)
+
+      if (officerError || profileError) {
+        console.error('[v0] City update error:', officerError || profileError)
+        alert('Failed to update city. Check console for details.')
+        return
+      }
+
+      await loadOfficers()
+      setSelectedOfficer((prev) => (prev ? { ...prev, city: newCity } : prev))
+    } catch (error) {
+      console.error('[v0] City update error:', error)
+    } finally {
+      setSavingCity(false)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     const badges = {
       pending: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
@@ -220,6 +279,7 @@ export default function AdminOfficersPage() {
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Name</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Email</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Ward</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">City</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Status</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Applied</th>
                     <th className="px-6 py-4 text-right text-sm font-semibold text-slate-300">Actions</th>
@@ -234,6 +294,7 @@ export default function AdminOfficersPage() {
                       <td className="px-6 py-4 text-white font-medium">{officer.full_name}</td>
                       <td className="px-6 py-4 text-slate-400 text-sm">{officer.email}</td>
                       <td className="px-6 py-4 text-slate-400 text-sm">{officer.ward_name}</td>
+                      <td className="px-6 py-4 text-slate-400 text-sm">{officer.city || 'Unassigned'}</td>
                       <td className="px-6 py-4">{getStatusBadge(officer.status)}</td>
                       <td className="px-6 py-4 text-slate-400 text-sm">
                         {new Date(officer.created_at).toLocaleDateString()}
@@ -242,6 +303,7 @@ export default function AdminOfficersPage() {
                         <button
                           onClick={() => {
                             setSelectedOfficer(officer)
+                            setCityDraft(officer.city || '')
                             setShowModal(true)
                           }}
                           className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
@@ -273,6 +335,31 @@ export default function AdminOfficersPage() {
               <div>
                 <p className="text-xs text-slate-400 uppercase">Ward</p>
                 <p className="text-white">{selectedOfficer.ward_name}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 uppercase mb-1">City</p>
+                <div className="flex gap-2">
+                  <select
+                    value={cityDraft}
+                    onChange={(e) => setCityDraft(e.target.value)}
+                    className="flex-1 px-3 py-2 rounded-lg border border-slate-700/50 bg-slate-800 text-white text-sm focus:outline-none focus:border-blue-500/50"
+                  >
+                    <option value="">Unassigned</option>
+                    {availableCities.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => handleChangeCity(selectedOfficer, cityDraft)}
+                    disabled={savingCity || !cityDraft || cityDraft === selectedOfficer.city}
+                    className="px-3 py-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30 text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {savingCity ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Changing this immediately updates which city's complaints this officer can see and act on.
+                </p>
               </div>
               <div>
                 <p className="text-xs text-slate-400 uppercase">Status</p>
