@@ -21,10 +21,19 @@ export default async function OfficerAnalyticsPage() {
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'officer') redirect('/citizen/dashboard')
 
-  // Fetch all complaints for aggregation (no RLS issue — officer sees all)
+  // Get officer's city assignment — analytics should be scoped to the
+  // officer's own city, same as the dashboard and work queue.
+  const { data: officerData } = await supabase
+    .from('officers')
+    .select('city')
+    .eq('user_id', user.id)
+    .single()
+  const cityFilter = officerData?.city ? { city: officerData.city } : {}
+
+  // Fetch all complaints for aggregation, scoped to this officer's city
   const [allRes, budgetRes] = await Promise.all([
-    supabase.from('complaints').select('id, category, status, severity, created_at, estimated_cost, wards(name)'),
-    supabase.from('complaints').select('estimated_cost').not('estimated_cost', 'is', null),
+    supabase.from('complaints').select('id, category, status, severity, created_at, estimated_cost, wards(name)').match(cityFilter),
+    supabase.from('complaints').select('estimated_cost').not('estimated_cost', 'is', null).match(cityFilter),
   ])
 
   const all = allRes.data ?? []
@@ -69,7 +78,7 @@ export default async function OfficerAnalyticsPage() {
     const date = new Date(c.created_at)
     const key = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
     if (trendMap[key]) trendMap[key].submitted += 1
-    if (c.status === 'resolved') {
+    if (c.status === 'resolved' || c.status === 'closed') {
       const resKey = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
       if (trendMap[resKey]) trendMap[resKey].resolved += 1
     }
@@ -77,7 +86,7 @@ export default async function OfficerAnalyticsPage() {
   const trendData = Object.entries(trendMap).map(([date, v]) => ({ date, ...v }))
 
   const totalCount = all.length
-  const resolvedCount = statusMap['resolved'] ?? 0
+  const resolvedCount = (statusMap['resolved'] ?? 0) + (statusMap['closed'] ?? 0)
   const criticalCount = (severityMap['critical'] ?? 0)
   const openCritical = all.filter((c) => c.severity === 'critical' && c.status !== 'resolved' && c.status !== 'closed').length
 

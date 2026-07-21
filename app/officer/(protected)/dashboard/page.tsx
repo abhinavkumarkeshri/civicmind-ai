@@ -62,7 +62,7 @@ export default async function OfficerDashboardPage() {
       supabase
         .from('complaints')
         .select('*', { count: 'exact', head: true })
-        .eq('status', 'resolved')
+        .in('status', ['resolved', 'closed'])
         .match(wardFilter),
       supabase
         .from('complaints')

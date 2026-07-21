@@ -19,7 +19,7 @@ export default function OfficerComplaintsPage() {
   const [search, setSearch] = useState('')
   const [severityFilter, setSeverityFilter] = useState<'all' | 'critical' | 'high' | 'medium' | 'low'>('all')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'submitted' | 'under_review' | 'in_progress'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'submitted' | 'under_review' | 'in_progress' | 'resolved' | 'closed'>('all')
 
   useEffect(() => {
     loadComplaints()
@@ -50,7 +50,14 @@ export default function OfficerComplaintsPage() {
       let query = supabase
         .from('complaints')
         .select('*, wards(name)')
-        .not('status', 'in', '("resolved","closed")')
+
+      // By default the queue only shows OPEN work. If the officer picks
+      // "Resolved" or "Closed" from the status dropdown, show those
+      // instead — otherwise there was no way to look back at completed
+      // complaints at all.
+      if (statusFilter === 'all') {
+        query = query.not('status', 'in', '("resolved","closed")')
+      }
 
       if (profile?.city) {
         query = query.eq('city', profile.city)
@@ -106,7 +113,7 @@ export default function OfficerComplaintsPage() {
       <div className="max-w-7xl mx-auto px-4 py-6">
         <PageHeader
           title="Work Queue"
-          subtitle={`${filtered.length} open complaints`}
+          subtitle={`${filtered.length} ${statusFilter === 'all' ? 'open ' : ''}complaint${filtered.length === 1 ? '' : 's'}`}
         />
 
         {/* Filters */}
@@ -160,6 +167,8 @@ export default function OfficerComplaintsPage() {
               <option value="submitted">Submitted</option>
               <option value="under_review">Under Review</option>
               <option value="in_progress">In Progress</option>
+              <option value="resolved">Resolved</option>
+              <option value="closed">Closed</option>
             </select>
 
             <div className="px-3 py-2 rounded-lg border border-[#1f2d45] bg-[#0d1526] text-slate-400 text-sm font-medium flex items-center gap-2">
