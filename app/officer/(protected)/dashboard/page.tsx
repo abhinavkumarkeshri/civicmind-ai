@@ -32,15 +32,15 @@ export default async function OfficerDashboardPage() {
     .single()
   if (profile?.role !== 'officer') redirect('/citizen/dashboard')
 
-  // Get officer's ward assignment
+  // Get officer's city assignment
   const { data: officerData } = await supabase
     .from('officers')
-    .select('ward_id')
+    .select('city')
     .eq('user_id', user.id)
     .single()
 
-  // Fetch all stats in parallel - filter by officer's ward
-  const wardFilter = officerData?.ward_id ? { ward_id: officerData.ward_id } : {}
+  // Fetch all stats in parallel - filter by officer's city
+  const wardFilter = officerData?.city ? { city: officerData.city } : {}
   
   const [totalRes, criticalRes, inProgressRes, resolvedRes, budgetRes, priorityRes] =
     await Promise.all([

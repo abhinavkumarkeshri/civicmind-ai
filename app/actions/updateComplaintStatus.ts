@@ -23,10 +23,24 @@ export async function updateComplaintStatus(
   // Get current status
   const { data: complaint } = await supabase
     .from('complaints')
-    .select('status, reporter_id')
+    .select('status, reporter_id, city')
     .eq('id', complaintId)
     .single()
   if (!complaint) throw new Error('Complaint not found')
+
+  // Defense-in-depth: confirm this officer's city matches the complaint's
+  // city before attempting the write. RLS (complaints_update_own) is the
+  // real enforcement boundary, but checking here lets us surface a clear
+  // message instead of a generic Postgres RLS error.
+  const { data: officerRecord } = await supabase
+    .from('officers')
+    .select('city, status')
+    .eq('user_id', user.id)
+    .single()
+
+  if (officerRecord?.city && complaint.city && officerRecord.city !== complaint.city) {
+    throw new Error('This complaint belongs to a different city — you can only act on complaints in your assigned city.')
+  }
 
   const now = newStatus === 'resolved' ? new Date().toISOString() : null
 
@@ -84,6 +98,23 @@ export async function assignOfficer(complaintId: string, officerId: string) {
     .eq('id', user.id)
     .single()
   if (profile?.role !== 'officer') throw new Error('Unauthorized')
+
+  const { data: complaint } = await supabase
+    .from('complaints')
+    .select('city')
+    .eq('id', complaintId)
+    .single()
+  if (!complaint) throw new Error('Complaint not found')
+
+  const { data: officerRecord } = await supabase
+    .from('officers')
+    .select('city')
+    .eq('user_id', officerId)
+    .single()
+
+  if (officerRecord?.city && complaint.city && officerRecord.city !== complaint.city) {
+    throw new Error('This complaint belongs to a different city — you can only be assigned complaints in your city.')
+  }
 
   await supabase
     .from('complaints')

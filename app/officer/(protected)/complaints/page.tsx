@@ -38,7 +38,7 @@ export default function OfficerComplaintsPage() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role, ward_id')
+        .select('role, city')
         .eq('id', userData.user.id)
         .single()
 
@@ -52,8 +52,8 @@ export default function OfficerComplaintsPage() {
         .select('*, wards(name)')
         .not('status', 'in', '("resolved","closed")')
 
-      if (profile?.ward_id) {
-        query = query.eq('ward_id', profile.ward_id)
+      if (profile?.city) {
+        query = query.eq('city', profile.city)
       }
 
       if (severityFilter !== 'all') {

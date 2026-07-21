@@ -119,6 +119,7 @@ export default function ReportPage() {
         address,
         beforeImageUrl: imageUrl,
         wardId: wardId || null,
+        city: city && city !== 'Unknown' ? city : null,
         aiAnalysis: {
           ...aiResult,
           category: editedCategory as OrchestratorResult['category'],

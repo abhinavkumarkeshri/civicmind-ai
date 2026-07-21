@@ -61,6 +61,16 @@ export async function POST(request: NextRequest) {
     // client would fail the profiles_insert_own RLS check.
     const adminSupabase = createAdminClient()
 
+    // Derive the officer's city from their selected ward. Authorization
+    // (RLS on complaints, and the app-level checks in updateComplaintStatus)
+    // is scoped by CITY, not by this specific ward — the ward selection here
+    // is just how we figure out which city the officer belongs to.
+    let city: string | null = null
+    if (wardId) {
+      const { data: ward } = await adminSupabase.from('wards').select('city').eq('id', wardId).single()
+      city = ward?.city ?? null
+    }
+
     const { error: profileError } = await adminSupabase
       .from('profiles')
       .upsert({
@@ -69,6 +79,7 @@ export async function POST(request: NextRequest) {
         email: email.toLowerCase(),
         role: 'officer',
         ward_id: wardId || null,
+        city,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -84,6 +95,7 @@ export async function POST(request: NextRequest) {
       .upsert({
         user_id: authData.user.id,
         ward_id: wardId || null,
+        city,
         status: 'pending',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

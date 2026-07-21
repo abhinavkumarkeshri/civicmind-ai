@@ -33,7 +33,16 @@ export function StepLocation({ lat, lng, address, city, state, wardId, onLocatio
     try {
       const response = await fetch(`/api/wards?city=${encodeURIComponent(cityName)}`)
       const data = await response.json()
-      setWards(data.wards || [])
+      const loadedWards: Ward[] = data.wards || []
+      setWards(loadedWards)
+      // Auto-select when there's exactly one ward for this city, unless
+      // the person already picked one (e.g. changed the location after
+      // picking). This cuts down on complaints ending up with a null
+      // ward_id (shown as "Unknown" in analytics) purely because the
+      // field is optional and easy to skip.
+      if (loadedWards.length === 1 && !wardId) {
+        onWardChange(loadedWards[0].id)
+      }
     } catch (err) {
       console.error('[v0] Error loading wards:', err)
       setWards([])
