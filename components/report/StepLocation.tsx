@@ -11,11 +11,13 @@ interface Props {
   city: string
   state: string
   wardId: string | null
+  wardLabel: string
   onLocationChange: (lat: number, lng: number, address: string, city: string, state: string) => void
   onWardChange: (wardId: string | null) => void
+  onWardLabelChange: (label: string) => void
 }
 
-export function StepLocation({ lat, lng, address, city, state, wardId, onLocationChange, onWardChange }: Props) {
+export function StepLocation({ lat, lng, address, city, state, wardId, wardLabel, onLocationChange, onWardChange, onWardLabelChange }: Props) {
   const [locating, setLocating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [wards, setWards] = useState<Ward[]>([])
@@ -170,9 +172,18 @@ export function StepLocation({ lat, lng, address, city, state, wardId, onLocatio
                 <p className="text-sm text-slate-400">Loading wards...</p>
               </div>
             ) : wards.length === 0 ? (
-              <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-500/20 bg-amber-500/5">
-                <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-amber-300">No wards available for this city. You can continue without selecting one.</p>
+              <div className="space-y-2">
+                <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-500/20 bg-amber-500/5">
+                  <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-amber-300">No wards available for this city. You can continue without selecting one, or type your ward/area below.</p>
+                </div>
+                <input
+                  type="text"
+                  value={wardLabel}
+                  onChange={(e) => onWardLabelChange(e.target.value)}
+                  placeholder="Ward name or number (optional)"
+                  className="w-full rounded-lg border border-[#1f2d45] bg-[#111827] text-slate-200 text-sm px-3 py-2.5 focus:outline-none focus:border-blue-500 placeholder:text-slate-500"
+                />
               </div>
             ) : (
               <select

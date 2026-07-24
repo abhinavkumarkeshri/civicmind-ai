@@ -15,6 +15,7 @@ export interface SubmitComplaintInput {
   address: string
   beforeImageUrl: string
   wardId: string | null
+  wardLabel: string | null
   city: string | null
   aiAnalysis: OrchestratorResult
 }
@@ -64,6 +65,7 @@ export async function submitComplaint(input: SubmitComplaintInput) {
       {
         reporter_id: user.id,
         ward_id: input.wardId,
+        ward_label: input.wardLabel,
         city: input.city && input.city !== 'Unknown' ? input.city : null,
         title: input.title,
         description: input.description,

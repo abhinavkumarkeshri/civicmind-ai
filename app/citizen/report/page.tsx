@@ -38,6 +38,7 @@ export default function ReportPage() {
   const [city, setCity] = useState<string>('Unknown')
   const [state, setState] = useState<string>('Unknown')
   const [wardId, setWardId] = useState<string | null>(null)
+  const [wardLabel, setWardLabel] = useState<string>('')
   const [aiError, setAiError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [userId, setUserId] = useState<string>('')
@@ -119,6 +120,7 @@ export default function ReportPage() {
         address,
         beforeImageUrl: imageUrl,
         wardId: wardId || null,
+        wardLabel: wardLabel.trim() || null,
         city: city && city !== 'Unknown' ? city : null,
         aiAnalysis: {
           ...aiResult,
@@ -266,6 +268,7 @@ export default function ReportPage() {
               city={city}
               state={state}
               wardId={wardId}
+              wardLabel={wardLabel}
               onLocationChange={(newLat, newLng, newAddress, newCity, newState) => {
                 setLat(newLat)
                 setLng(newLng)
@@ -274,6 +277,7 @@ export default function ReportPage() {
                 setState(newState)
               }}
               onWardChange={(newWardId) => setWardId(newWardId)}
+              onWardLabelChange={(label) => setWardLabel(label)}
             />
             <button
               onClick={() => setStep('confirm')}
