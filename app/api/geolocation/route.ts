@@ -31,13 +31,14 @@ export async function GET(request: NextRequest) {
     const data = await response.json()
     const addr = data.address || {}
 
-    const city =
+    const rawCity =
       addr.city ||
       addr.town ||
       addr.village ||
       addr.municipality ||
       addr.county ||
       'Unknown'
+    const city = normalizeCityName(rawCity)
     const state = addr.state || 'Unknown'
 
     return NextResponse.json({
@@ -55,4 +56,22 @@ export async function GET(request: NextRequest) {
       country: 'India',
     })
   }
+}
+
+/**
+ * Nominatim often returns civic-body names instead of plain city names
+ * (e.g. "Bhubaneswar Municipal Corporation", "Greater Kolkata Corporation",
+ * "Patna Nagar Nigam"). Our wards/officers/complaints all key off the plain
+ * city name, so we strip these common Indian administrative-body suffixes
+ * to keep matching consistent everywhere.
+ */
+function normalizeCityName(rawCity: string): string {
+  return rawCity
+    .replace(/\([^)]*\)/g, ' ') // drop parenthetical bits like "(M.Corp.)"
+    .replace(
+      /\b(Municipal\s+Corporation|Municipal\s+Council|Municipality|City\s+Corporation|Nagar\s+Nigam|Nagar\s+Palika|Nagar\s+Parishad|Corporation|Cantonment\s+Board)\b/gi,
+      '',
+    )
+    .replace(/\s+/g, ' ')
+    .trim()
 }
