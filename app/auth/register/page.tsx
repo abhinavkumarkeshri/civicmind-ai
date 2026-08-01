@@ -23,7 +23,7 @@ export default function RegisterPage() {
     setError(null)
 
     const supabase = createClient()
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
@@ -40,12 +40,23 @@ export default function RegisterPage() {
       return
     }
 
+    // Supabase doesn't throw an error when signUp() is called with an
+    // email that's already registered — to prevent user enumeration, it
+    // instead returns a "success" response with an obfuscated user object
+    // whose identities array is empty. Catch that here and tell the
+    // person plainly instead of silently sending them into a broken flow.
+    if (data.user?.identities && data.user.identities.length === 0) {
+      setError('An account with this email already exists. Please sign in instead.')
+      setLoading(false)
+      return
+    }
+
     // Our own OTP flow replaces Supabase's link-based confirmation email
     // (which had been failing with an authentication error on click).
     const otpRes = await fetch('/api/auth/send-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: form.email, purpose: 'signup' }),
+      body: JSON.stringify({ email: form.email, purpose: 'signup', userId: data.user?.id }),
     })
 
     if (!otpRes.ok) {
