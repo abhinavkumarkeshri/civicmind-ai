@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Eye, EyeOff, Lock, Mail, Loader2, AlertCircle, ArrowLeft } from 'lucide-react'
+import { Eye, EyeOff, Lock, Loader2, AlertCircle, ArrowLeft } from 'lucide-react'
 
 export default function AdminSignupPage() {
   const router = useRouter()
@@ -58,10 +58,6 @@ export default function AdminSignupPage() {
       console.error('[v0] Admin signup error:', err)
       setLoading(false)
     }
-  }
-
-  return (      </div>
-    )
   }
 
   return (
