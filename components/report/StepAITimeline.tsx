@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Check, Loader2, AlertCircle } from 'lucide-react'
 import type { OrchestratorResult } from '@/lib/types/database'
 import { fileToBase64, getMimeType, uploadComplaintImage } from '@/services/supabase/storage'
+import { resizeImageFile } from '@/lib/utils/resizeImage'
 
 interface AgentStep {
   id: string
@@ -46,16 +47,22 @@ export function StepAITimeline({ imageFile, lat, lng, userId, idempotencyKey, on
 
     async function run() {
       try {
+        // Resize/compress once up front — keeps both the storage upload
+        // and the AI analysis payload well under Vercel's request size
+        // limit, which was causing large photos (e.g. flood/wide-scene
+        // shots) to fail with a non-JSON "Request Entity Too Large" error.
+        const resizedFile = await resizeImageFile(imageFile)
+
         // Step 1 — Upload image
         setStepStatus('upload', 'running')
-        const imageUrl = await uploadComplaintImage(userId, idempotencyKey, imageFile)
+        const imageUrl = await uploadComplaintImage(userId, idempotencyKey, resizedFile)
         if (cancelled) return
         setStepStatus('upload', 'done', 'Uploaded successfully')
 
         // Steps 2+ — run orchestrator
         setStepStatus('vision', 'running')
-        const base64 = await fileToBase64(imageFile)
-        const mime = getMimeType(imageFile)
+        const base64 = await fileToBase64(resizedFile)
+        const mime = getMimeType(resizedFile)
 
         // Mark all remaining steps running sequentially via streaming progress
         // We simulate step-by-step by polling via SSE — here we call the API and
