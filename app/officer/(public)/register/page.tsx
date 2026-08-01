@@ -83,7 +83,7 @@ export default function OfficerRegisterPage() {
       setSuccess(true)
 
       setTimeout(() => {
-        router.push('/officer/pending-approval')
+        router.push(`/auth/verify-email?email=${encodeURIComponent(formData.email)}&redirectTo=/officer/login`)
       }, 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')

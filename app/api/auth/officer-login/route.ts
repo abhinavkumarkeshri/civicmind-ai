@@ -21,6 +21,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: authError?.message ?? 'Login failed' }, { status: 401 })
     }
 
+    // Step 1.5: Enforce our own email verification (replaces Supabase's
+    // link-based confirmation, which was failing on click)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email_verified')
+      .eq('id', authData.user.id)
+      .single()
+
+    if (profile?.email_verified === false) {
+      await supabase.auth.signOut()
+      return NextResponse.json(
+        { error: 'Please verify your email before signing in.', status: 'unverified' },
+        { status: 403 },
+      )
+    }
+
     // Step 2: Fetch officer record BEFORE deciding whether to keep the session
     const { data: officerData, error: officerError } = await supabase
       .from('officers')

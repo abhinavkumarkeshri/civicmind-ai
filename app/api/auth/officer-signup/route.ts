@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createOtp } from '@/lib/otp/otp'
+import { sendOtpEmail } from '@/lib/email/mailer'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -109,10 +111,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Send our own OTP for email verification (replaces Supabase's
+    // link-based confirmation, which redirects with an auth error).
+    try {
+      const otp = await createOtp(email, 'signup')
+      await sendOtpEmail(email, otp, 'signup')
+    } catch (otpError) {
+      console.error('[v0] Failed to send signup OTP:', otpError)
+      // Don't fail the whole signup over an email hiccup — the person can
+      // request a new code from the verify-email page.
+    }
+
     return NextResponse.json(
       {
         success: true,
-        message: 'Officer signup submitted. Waiting for admin approval.',
+        message: 'Officer signup submitted. Please verify your email, then wait for admin approval.',
         userId: authData.user.id,
         status: 'pending',
       },

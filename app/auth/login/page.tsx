@@ -31,9 +31,15 @@ export default function LoginPage() {
     // Fetch role and redirect accordingly
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, email_verified')
       .eq('id', data.user.id)
       .single()
+
+    if (profile?.email_verified === false) {
+      await supabase.auth.signOut()
+      router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`)
+      return
+    }
 
     if (profile?.role === 'officer') {
       router.push('/officer/dashboard')
@@ -127,6 +133,9 @@ export default function LoginPage() {
                 <label htmlFor="password" className="text-sm font-medium text-slate-300">
                   Password
                 </label>
+                <Link href="/auth/forgot-password" className="text-xs text-blue-400 hover:text-blue-300">
+                  Forgot password?
+                </Link>
               </div>
               <div className="relative">
                 <input

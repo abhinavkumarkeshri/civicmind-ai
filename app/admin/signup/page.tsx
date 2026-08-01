@@ -3,147 +3,64 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Eye, EyeOff, Lock, Mail, Loader2, AlertCircle, ArrowLeft, CheckCircle2 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-
-const ADMIN_ALLOWLIST = [
-  'abhinavkumarkeshri27@gmail.com',
-  'abhinavkrk888@gmail.com'
-]
+import { Eye, EyeOff, Lock, Mail, Loader2, AlertCircle, ArrowLeft } from 'lucide-react'
 
 export default function AdminSignupPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
+  const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
-    // Validation checks
     if (!email || !password || !confirmPassword) {
       setError('All fields are required')
       setLoading(false)
       return
     }
-
     if (password.length < 8) {
       setError('Password must be at least 8 characters')
       setLoading(false)
       return
     }
-
     if (password !== confirmPassword) {
       setError('Passwords do not match')
       setLoading(false)
       return
     }
 
-    if (!ADMIN_ALLOWLIST.includes(email.toLowerCase())) {
-      setError('This email is not authorized for admin access. Only registered administrators can create accounts.')
-      setLoading(false)
-      return
-    }
-
     try {
-      const supabase = createClient()
-
-      // Check if email already exists
-      const { data: existingUser } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', email.toLowerCase())
-        .single()
-
-      if (existingUser) {
-        setError('This email is already registered. Please sign in instead.')
-        setLoading(false)
-        return
-      }
-
-      // Create auth account
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: email.toLowerCase(),
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-          data: { role: 'admin' }
-        }
+      const response = await fetch('/api/auth/admin-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.toLowerCase(), password, fullName }),
       })
 
-      if (signUpError) {
-        setError(signUpError.message)
+      const result = await response.json()
+
+      if (!response.ok) {
+        setError(result.error || 'Signup failed')
         setLoading(false)
         return
       }
 
-      if (!data.user) {
-        setError('Failed to create account')
-        setLoading(false)
-        return
-      }
-
-      // Create admin record
-      const { error: adminError } = await supabase
-        .from('admins')
-        .insert([
-          {
-            user_id: data.user.id,
-            email: email.toLowerCase(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }
-        ])
-
-      if (adminError) {
-        setError('Failed to create admin profile: ' + adminError.message)
-        setLoading(false)
-        return
-      }
-
-      setSuccess(true)
+      router.push(`/auth/verify-email?email=${encodeURIComponent(email)}&redirectTo=/admin/login`)
     } catch (err) {
       setError('An unexpected error occurred. Please try again.')
       console.error('[v0] Admin signup error:', err)
-    } finally {
       setLoading(false)
     }
   }
 
-  if (success) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0d14] px-4">
-        <div className="text-center max-w-md">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-6">
-            <CheckCircle2 className="w-8 h-8 text-emerald-400" />
-          </div>
-          <h1 className="text-2xl font-semibold text-slate-100 mb-2">Admin account created!</h1>
-          <p className="text-slate-400 mb-8">
-            Your admin account has been successfully created. A confirmation email has been sent to <span className="text-slate-200">{email}</span>.
-          </p>
-          <div className="space-y-3">
-            <Link
-              href="/admin/login"
-              className="inline-flex items-center justify-center w-full px-6 py-3 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-medium transition-colors text-sm"
-            >
-              Go to Admin Login
-            </Link>
-            <Link
-              href="/"
-              className="inline-flex items-center justify-center w-full px-6 py-3 rounded-lg border border-[#1f2d45] text-slate-300 hover:bg-[#111827] font-medium transition-colors text-sm"
-            >
-              Back to Home
-            </Link>
-          </div>
-        </div>
-      </div>
+  return (      </div>
     )
   }
 
@@ -177,6 +94,20 @@ export default function AdminSignupPage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="fullName" className="block text-sm font-medium text-slate-300 mb-1.5">
+              Full name
+            </label>
+            <input
+              id="fullName"
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-lg bg-[#111827] border border-[#1f2d45] text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-colors text-sm"
+              placeholder="Your name"
+            />
+          </div>
+
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-1.5">
               Email address

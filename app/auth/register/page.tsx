@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Eye, EyeOff, MapPin, Loader2, CheckCircle2, ArrowLeft } from 'lucide-react'
+import { Eye, EyeOff, MapPin, Loader2, ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function RegisterPage() {
@@ -12,7 +12,6 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
 
   function update(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -41,31 +40,22 @@ export default function RegisterPage() {
       return
     }
 
-    setSuccess(true)
-    setLoading(false)
-  }
+    // Our own OTP flow replaces Supabase's link-based confirmation email
+    // (which had been failing with an authentication error on click).
+    const otpRes = await fetch('/api/auth/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: form.email, purpose: 'signup' }),
+    })
 
-  if (success) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0d14] px-4">
-        <div className="text-center max-w-md">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-6">
-            <CheckCircle2 className="w-8 h-8 text-emerald-400" />
-          </div>
-          <h1 className="text-2xl font-semibold text-slate-100 mb-2">Check your email</h1>
-          <p className="text-slate-400 mb-8">
-            We&apos;ve sent a confirmation link to <span className="text-slate-200">{form.email}</span>.
-            Click it to activate your account.
-          </p>
-          <Link
-            href="/auth/login"
-            className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors text-sm"
-          >
-            Back to Login
-          </Link>
-        </div>
-      </div>
-    )
+    if (!otpRes.ok) {
+      const data = await otpRes.json()
+      setError(data.error || 'Account created, but we could not send a verification code. Please try signing in and requesting a new one.')
+      setLoading(false)
+      return
+    }
+
+    router.push(`/auth/verify-email?email=${encodeURIComponent(form.email)}`)
   }
 
   return (

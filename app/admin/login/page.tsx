@@ -39,6 +39,20 @@ export default function AdminLoginPage() {
         return
       }
 
+      // Enforce our own email verification (replaces Supabase's link-based
+      // confirmation, which was failing on click)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email_verified')
+        .eq('id', data.user.id)
+        .single()
+
+      if (profile?.email_verified === false) {
+        await supabase.auth.signOut()
+        router.push(`/auth/verify-email?email=${encodeURIComponent(email)}&redirectTo=/admin/login`)
+        return
+      }
+
       // Verify admin access server-side
       const response = await fetch('/api/auth/verify-admin', {
         method: 'POST',
@@ -162,6 +176,11 @@ export default function AdminLoginPage() {
             Don&apos;t have an account?{' '}
             <Link href="/admin/signup" className="text-amber-400 hover:text-amber-300 font-medium transition-colors">
               Create admin account
+            </Link>
+          </p>
+          <p className="mb-4">
+            <Link href="/auth/forgot-password" className="text-amber-400 hover:text-amber-300 transition-colors">
+              Forgot password?
             </Link>
           </p>
           <Link href="/" className="text-slate-500 hover:text-slate-400 transition-colors">

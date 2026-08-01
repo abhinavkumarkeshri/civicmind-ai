@@ -27,6 +27,10 @@ export default function OfficerLoginPage() {
       const result = await response.json()
 
       if (!response.ok) {
+        if (result.status === 'unverified') {
+          router.push(`/auth/verify-email?email=${encodeURIComponent(email)}&redirectTo=/officer/login`)
+          return
+        }
         setError({
           message: result.message || result.error || 'Login failed',
           type: result.status,
@@ -161,6 +165,11 @@ export default function OfficerLoginPage() {
             New to the officer portal?{' '}
             <Link href="/officer/register" className="text-blue-400 hover:text-blue-300 transition-colors">
               Register as officer
+            </Link>
+          </p>
+          <p>
+            <Link href="/auth/forgot-password" className="text-blue-400 hover:text-blue-300 transition-colors">
+              Forgot password?
             </Link>
           </p>
           <p className="text-xs">

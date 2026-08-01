@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { isAuthorizedAdminEmail } from '@/lib/config/admin-allowlist'
+import { createOtp } from '@/lib/otp/otp'
+import { sendOtpEmail } from '@/lib/email/mailer'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -152,6 +154,13 @@ export async function POST(request: NextRequest) {
 
     if (adminError) {
       return NextResponse.json({ error: `Failed to create admin record: ${adminError.message}` }, { status: 500 })
+    }
+
+    try {
+      const otp = await createOtp(email, 'signup')
+      await sendOtpEmail(email, otp, 'signup')
+    } catch (otpError) {
+      console.error('[v0] Failed to send signup OTP:', otpError)
     }
 
     return NextResponse.json(
