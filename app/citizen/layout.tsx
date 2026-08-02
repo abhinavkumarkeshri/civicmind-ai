@@ -4,6 +4,13 @@ import { CitizenNav } from '@/components/shared/CitizenNav'
 import { ServiceWorkerRegistrar } from '@/components/shared/ServiceWorkerRegistrar'
 import { OfflineBanner } from '@/components/shared/OfflineBanner'
 
+// CRITICAL: without this, Next.js can treat this layout as cacheable and
+// serve one user's rendered profile/nav HTML to a different user who logs
+// in afterward. Every layout/page that reads the current session MUST
+// have this.
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function CitizenLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -2,6 +2,11 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { OfficerNav } from '@/components/shared/OfficerNav'
 
+// CRITICAL: prevents one officer's rendered profile/nav HTML from being
+// cached and served to a different officer who logs in afterward.
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function OfficerLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -4,6 +4,9 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getComplaintById, getComplaintUpdates } from '@/services/supabase/complaints'
 import { SeverityBadge } from '@/components/shared/SeverityBadge'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 import { StatusPill } from '@/components/shared/StatusPill'
 import { CategoryBadge } from '@/components/shared/CategoryBadge'
 import { AIExplainCard } from '@/components/complaints/AIExplainCard'
