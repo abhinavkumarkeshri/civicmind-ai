@@ -7,15 +7,17 @@
  * - Background Sync:       Drain offline complaint queue on reconnect
  */
 
-const CACHE_NAME = 'civicmind-v1'
+const CACHE_NAME = 'civicmind-v2'
 const SYNC_TAG = 'civicmind-complaint-sync'
 
+// Only truly public, non-personalized routes belong here. Dashboards and
+// any other per-user page must NEVER be pre-cached or cached at all — a
+// cached dashboard HTML response can end up served to a different person
+// who logs in afterward.
 const SHELL_ROUTES = [
   '/',
   '/auth/login',
   '/auth/register',
-  '/citizen/dashboard',
-  '/officer/dashboard',
 ]
 
 // ── Install: pre-cache the app shell ─────────────────────────
@@ -48,8 +50,17 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
   if (url.origin !== self.location.origin) return
 
-  // Network-first for API, auth, and Supabase
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) {
+  // Network-first, NEVER cached: API, auth, and every authenticated
+  // per-user area (citizen/officer/admin). These can render different
+  // content per person, so caching their HTML at all risks showing one
+  // person's data to someone else.
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/auth/') ||
+    url.pathname.startsWith('/citizen/') ||
+    url.pathname.startsWith('/officer/') ||
+    url.pathname.startsWith('/admin/')
+  ) {
     event.respondWith(
       fetch(event.request).catch(() =>
         caches.match(event.request).then((cached) => cached ?? Response.error())
