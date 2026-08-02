@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { StatsGrid } from '@/components/dashboard/StatsGrid'
+import { DashboardGreeting } from '@/components/dashboard/DashboardGreeting'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { ComplaintCard } from '@/components/complaints/ComplaintCard'
 import {
@@ -67,9 +68,7 @@ export default async function CitizenDashboardPage() {
       {/* Greeting */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-slate-100">
-            Good morning, <span className="text-blue-400">{firstName}</span>
-          </h1>
+          <DashboardGreeting firstName={firstName} />
           <p className="text-sm text-slate-400 mt-0.5">
             Your civic contributions are making a difference.
           </p>

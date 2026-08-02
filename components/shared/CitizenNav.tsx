@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, MapPin, List, PlusCircle, Bell, LogOut, User, ChevronDown } from 'lucide-react'
+import { LayoutDashboard, MapPin, List, PlusCircle, LogOut, User, ChevronDown } from 'lucide-react'
+import { NotificationBell } from '@/components/shared/NotificationBell'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/lib/types/database'
@@ -63,15 +64,7 @@ export function CitizenNav({ profile, unreadCount = 0 }: CitizenNavProps) {
         </nav>
 
         <div className="flex items-center gap-3">
-          <button
-            className="relative p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#1a2235] transition-colors"
-            aria-label={`${unreadCount} unread notifications`}
-          >
-            <Bell className="w-4 h-4" />
-            {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-blue-500" />
-            )}
-          </button>
+          <NotificationBell />
 
           {/* Profile Menu */}
           <div className="relative">
