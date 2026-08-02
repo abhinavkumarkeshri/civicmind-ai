@@ -39,7 +39,7 @@ export default function OfficerLoginPage() {
         return
       }
 
-      router.push('/officer/dashboard')
+      window.location.href = '/officer/dashboard'
     } catch (err) {
       setError({
         message: err instanceof Error ? err.message : 'An error occurred',

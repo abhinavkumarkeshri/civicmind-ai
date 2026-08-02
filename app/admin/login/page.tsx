@@ -70,7 +70,7 @@ export default function AdminLoginPage() {
       }
 
       // Redirect to admin dashboard
-      router.push('/admin/dashboard')
+      window.location.href = '/admin/dashboard'
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
       setLoading(false)

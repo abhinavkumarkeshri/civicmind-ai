@@ -3,6 +3,16 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Prevents the client-side Router Cache from briefly showing a
+  // previously-cached (possibly different user's) page when navigating to
+  // a dynamic route — e.g. logging in as a new user right after someone
+  // else was signed in. Without this, Next.js can show stale RSC content
+  // for a moment before revalidating.
+  experimental: {
+    staleTimes: {
+      dynamic: 0,
+    },
+  },
   images: {
     unoptimized: true,
     remotePatterns: [

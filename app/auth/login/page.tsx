@@ -42,11 +42,11 @@ export default function LoginPage() {
     }
 
     if (profile?.role === 'officer') {
-      router.push('/officer/dashboard')
+      window.location.href = '/officer/dashboard'
     } else if (profile?.role === 'admin') {
-      router.push('/admin/dashboard')
+      window.location.href = '/admin/dashboard'
     } else {
-      router.push('/citizen/dashboard')
+      window.location.href = '/citizen/dashboard'
     }
   }
 
